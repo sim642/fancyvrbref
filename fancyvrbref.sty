@@ -1,0 +1,58 @@
+\ProvidesPackage{fancyvrbref}[2025-05-01 v1.0 Referencing lines in fancyvrb/minted]
+
+\NeedsTeXFormat{LaTeX2e}[2020-10-01] % For LaTeX hooks.
+
+\RequirePackage{fancyvrb}
+\RequirePackage{etoolbox} % For \patchcmd.
+
+% Add hyperref anchors for each line.
+\AddToHook{package/hyperref/after}{%
+  \patchcmd\FV@ListProcessLine
+    {\kern\leftmargin}
+    {% Copied & modified from hyperref's \phantomsection.
+    \Hy@MakeCurrentHrefAuto{FancyVerbLine*}% Modified from section*. Can't use FancyVerbLine counter because it resets for every environment and doesn't give globally unique anchor names.
+    \Hy@raisedlink{\hyper@anchorstart{\@currentHref}\hyper@anchorend}%
+    \kern\leftmargin}
+    {}{\fail}
+
+  \AddToHook{package/fvextra/after}{%
+    % minted uses fvextra, which overrides \FV@ListProcessLine.
+    % TODO: Why also need these if \FV@ListProcessLine is overridden?
+    % Same as above.
+    \patchcmd\FV@ListProcessLine@Break
+      {\kern\leftmargin}
+      {\Hy@MakeCurrentHrefAuto{FancyVerbLine*}%
+      \Hy@raisedlink{\hyper@anchorstart{\@currentHref}\hyper@anchorend}%
+      \kern\leftmargin}
+      {}{\fail}
+
+    % Same as above.
+    \patchcmd\FV@ListProcessLine@NoBreak
+      {\kern\leftmargin}
+      {\Hy@MakeCurrentHrefAuto{FancyVerbLine*}%
+      \Hy@raisedlink{\hyper@anchorstart{\@currentHref}\hyper@anchorend}%
+      \kern\leftmargin}
+      {}{\fail}
+  }
+}
+
+% Add cleveref support.
+\let\FVR@old@refstepcounter\FV@refstepcounter%
+\def\FV@refstepcounter#1{%
+  \FVR@old@refstepcounter{#1}%
+  \let\@currentlabelname\@empty% For \nameref to not use some previous name.
+  \@ifpackageloaded{cleveref}{%
+    % Copied & modified from cleveref's \refstepcounter@noarg.
+    \cref@constructprefix{#1}{\cref@result}%
+    \@ifundefined{cref@#1@alias}%
+      {\def\@tempa{#1}}%
+      {\def\@tempa{\csname cref@#1@alias\endcsname}}%
+    \protected@edef\cref@currentlabel{%
+      [\@tempa][\arabic{#1}][\cref@result]%
+      \@currentlabel}% Modified from \theFancyVerbLine, which contains \tiny.
+  }{}%
+}
+
+\AddToHook{package/cleveref/after}{%
+  \crefname{FancyVerbLine}{line}{lines}
+}
