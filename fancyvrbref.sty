@@ -1,4 +1,4 @@
-\ProvidesPackage{fancyvrbref}[2025-05-01 v1.0 Referencing lines in fancyvrb/minted]
+\ProvidesPackage{fancyvrbref}[2025-05-11 v1.1 Referencing lines in fancyvrb/minted]
 
 \NeedsTeXFormat{LaTeX2e}[2020-10-01] % For LaTeX hooks.
 
@@ -7,6 +7,15 @@
 
 % Add hyperref anchors for each line.
 \AddToHook{package/hyperref/after}{%
+  \appto\FV@ListParameterHook{%
+    % fancyvrb frame option and fvextra breaklines option set \baselineskip to zero (immediately or after two lines).
+    % Remember \baselineskip at the beginning of environment to use for \Hy@raisedlink via hook.
+    \edef\FVR@old@baselineskip{\the\baselineskip}%
+    \appto\HyperRaiseLinkHook{%
+      \setlength\HyperRaiseLinkLength\FVR@old@baselineskip%
+    }
+  }
+
   \patchcmd\FV@ListProcessLine
     {\kern\leftmargin}
     {% Copied & modified from hyperref's \phantomsection.
