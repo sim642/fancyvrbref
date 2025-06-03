@@ -1,9 +1,10 @@
-\ProvidesPackage{fancyvrbref}[2025-05-11 v1.1 Referencing lines in fancyvrb/minted]
+\ProvidesPackage{fancyvrbref}[2025-06-03 v1.2 Referencing lines in fancyvrb/minted]
 
 \NeedsTeXFormat{LaTeX2e}[2020-10-01] % For LaTeX hooks.
 
 \RequirePackage{fancyvrb}
 \RequirePackage{etoolbox} % For \patchcmd.
+\RequirePackage{aliascnt} % For FancyVerbRefLine counter.
 
 % Add hyperref anchors for each line.
 \AddToHook{package/hyperref/after}{%
@@ -43,25 +44,44 @@
       \kern\leftmargin}
       {}{\fail}
   }
+
+  % Unnecessary, because \autoref gets the FancyVerbLine counter from \Hy@MakeCurrentHrefAuto above and hyperref already defines the name for it.
+  % \def\FancyVerbRefLineautorefname{line}
 }
 
 % Add cleveref support.
+\newaliascnt{FancyVerbRefLine}{FancyVerbLine}
+\def\theFancyVerbRefLine{\arabic{FancyVerbRefLine}} % No \rmfamily\tiny by default like \theFancyVerbLine.
+
+% Copied from within latex's \refstepcounter.
+\def\FVR@currentlabel#1{%
+  \protected@edef\@currentlabel
+    {\csname p@#1\expandafter\endcsname\csname the#1\endcsname}}%
+
+% Copied & modified from cleveref's \refstepcounter@noarg.
+\def\FVR@cref@currentlabel#1{%
+  % \cref@old@refstepcounter{#1}% Removed!
+  \cref@constructprefix{#1}{\cref@result}%
+  \@ifundefined{cref@#1@alias}%
+    {\def\@tempa{#1}}%
+    {\def\@tempa{\csname cref@#1@alias\endcsname}}%
+  \protected@edef\cref@currentlabel{%
+    [\@tempa][\arabic{#1}][\cref@result]%
+    \csname p@#1\endcsname\csname the#1\endcsname}}%
+
 \let\FVR@old@refstepcounter\FV@refstepcounter%
 \def\FV@refstepcounter#1{%
   \FVR@old@refstepcounter{#1}%
+  \FVR@currentlabel{FancyVerbRefLine}% Override \@currentlabel from \FVR@old@refstepcounter, such that \theFancyVerbRefLine consistently applies to both \ref and \cref.
+  \edef\@currentcounter{FancyVerbRefLine}% LaTeX2e format since 2024-11-01 causes hyperref to not redefine \refstepcounter. First aid for cleveref derives \cref@currentlabel from \@currentcounter.
   \let\@currentlabelname\@empty% For \nameref to not use some previous name.
   \@ifpackageloaded{cleveref}{%
-    % Copied & modified from cleveref's \refstepcounter@noarg.
-    \cref@constructprefix{#1}{\cref@result}%
-    \@ifundefined{cref@#1@alias}%
-      {\def\@tempa{#1}}%
-      {\def\@tempa{\csname cref@#1@alias\endcsname}}%
-    \protected@edef\cref@currentlabel{%
-      [\@tempa][\arabic{#1}][\cref@result]%
-      \@currentlabel}% Modified from \theFancyVerbLine, which contains \tiny.
+    \FVR@cref@currentlabel{FancyVerbRefLine}% Set \cref@currentlabel. Only relevant before LaTeX2e format 2024-11-01, later this gets overridden via \@currentcounter anyway.
   }{}%
 }
 
 \AddToHook{package/cleveref/after}{%
-  \crefname{FancyVerbLine}{line}{lines}
+  % Unnecessary.
+  % \crefname{FancyVerbLine}{line}{lines}
+  \crefname{FancyVerbRefLine}{line}{lines}
 }
